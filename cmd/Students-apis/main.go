@@ -64,6 +64,7 @@ import (
 
 	"github.com/Shubham1-Kumar/students-apis/internal/config"
 	"github.com/Shubham1-Kumar/students-apis/internal/http/handlers/student"
+	"github.com/Shubham1-Kumar/students-apis/internal/storage/sqlite"
 )
 
 func main() {
@@ -71,10 +72,17 @@ func main() {
 	cfg := config.MustLoad()
 
 	// database setup
+	storage, err := sqlite.New(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	slog.Info("storage initialize", slog.String("env", cfg.Env), slog.String("version", "1.0.0"))
+
 	// setup router
 	router := http.NewServeMux() // it returns server mux whch is your router
 
-	router.HandleFunc("POST /api/students", student.New())
+	router.HandleFunc("POST /api/students", student.New(storage))
+	router.HandleFunc("GET /api/students/{id}", student.GetById(storage))
 	// setup server
 	server := http.Server{
 		Addr:    cfg.Addr,
@@ -98,7 +106,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := server.Shutdown(ctx)
+	err = server.Shutdown(ctx)
 	if err != nil {
 		slog.Error("failded to shutdown", slog.String("error", err.Error()))
 	}
